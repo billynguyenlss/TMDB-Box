@@ -1,0 +1,85 @@
+---
+title: "TMDB Box revenue prediction"
+author: "Nguyen Bao Long"
+date: "8/19/2019"
+output: html_document
+---
+
+\newpage
+
+```{r setup, include=FALSE}
+# set up environment, standardize figure output
+
+options(tinytex.verbose = TRUE)
+knitr::opts_chunk$set(echo = TRUE, fig.height = 3.5, fig.width = 5,
+                      fig.align = "center")
+```
+
+```{r, include=FALSE}
+if(!require(matrixStats)) install.packages("matrixStats", 
+                   repos = "http://cran.us.r-project.org", 
+                   dependencies = TRUE)
+
+if(!require(grDevices)) install.packages("grDevices", 
+                   repos = "http://cran.us.r-project.org", 
+                   dependencies = TRUE)
+
+if(!require(gridExtra)) install.packages("gridExtra", 
+                   repos = "http://cran.us.r-project.org", 
+                   dependencies = TRUE)
+
+if(!require(tidyverse)) install.packages("tidyverse", 
+                   repos = "http://cran.us.r-project.org", 
+                   dependencies = TRUE)
+
+if(!require(caret)) install.packages("caret", 
+                   repos = "http://cran.us.r-project.org", 
+                   dependencies = TRUE)
+```
+
+
+```{r import library, include=FALSE}
+library(tidyverse)
+library(caret)
+library(matrixStats)
+library(grDevices)
+library(gridExtra)
+```
+
+
+\newpage
+
+**Abstract**
+
+# **Introduction**
+
+## **Background**
+
+## **Objective**
+
+## **Project methodology**
+
+# **Data exploratory analysis**
+
+## **Data overview**
+
+## **Revenue**
+
+## **Variables**
+
+## **Features engineering**
+
+# **Modeling**
+
+# **Results**
+
+## **Validation**
+
+## **Discussion**
+
+# **Conclusion**
+
+
+
+# **Reference**
+
