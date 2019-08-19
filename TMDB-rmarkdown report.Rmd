@@ -20,7 +20,7 @@ if(!require(matrixStats)) install.packages("matrixStats",
                    repos = "http://cran.us.r-project.org", 
                    dependencies = TRUE)
 
-if(!require(grDevices)) install.packages("grDevices", 
+if(!require(Amelia)) install.packages("Amelia", 
                    repos = "http://cran.us.r-project.org", 
                    dependencies = TRUE)
 
@@ -35,6 +35,10 @@ if(!require(tidyverse)) install.packages("tidyverse",
 if(!require(caret)) install.packages("caret", 
                    repos = "http://cran.us.r-project.org", 
                    dependencies = TRUE)
+
+if(!require(kableExtra)) install.packages("kableExtra", 
+                   repos = "http://cran.us.r-project.org", 
+                   dependencies = TRUE)
 ```
 
 
@@ -44,6 +48,10 @@ library(caret)
 library(matrixStats)
 library(grDevices)
 library(gridExtra)
+library(Amelia)
+library(DataExplorer)
+library(knitr)
+library(kableExtra)
 ```
 
 
@@ -53,19 +61,261 @@ library(gridExtra)
 
 # **Introduction**
 
+
+
 ## **Background**
 
-## **Objective**
+**TMDB Box Office Prediction**
+
+Can you predict a movie's worldwide box office revenue?
+
+In a world… where movies made an estimated $41.7 billion in 2018, the film industry is more popular than ever. But what movies make the most money at the box office? How much does a director matter? Or the budget? For some movies, it's "You had me at 'Hello.'" For others, the trailer falls short of expectations and you think "What we have here is a failure to communicate."
+
+In this competition, you're presented with metadata on over 7,000 past films from The Movie Database to try and predict their overall worldwide box office revenue. Data points provided include cast, crew, plot keywords, budget, posters, release dates, languages, production companies, and countries. You can collect other publicly available data to use in your model predictions, but in the spirit of this competition, use only data that would have been available before a movie's release.
+
+## **Objective and evaluation**
+
+It is your job to predict the international box office revenue for each movie. For each id in the test set, you must predict the value of the revenue variable. 
+
+Submissions are evaluated on Root-Mean-Squared-Logarithmic-Error (RMSLE) between the predicted value and the actual revenue. Logs are taken to not overweight blockbuster revenue movies.
+
 
 ## **Project methodology**
 
 # **Data exploratory analysis**
 
+## **Data preparation**
+
+Download data from my github repo and import to R global environment.
+
+```{r}
+# download raw data from my github repo
+
+url_train <- url("https://raw.githubusercontent.com/billynguyenlss/TMDB-Box/master/data/train.csv")
+train_set <- read.csv(url_train, na.strings=c("", '#N/A', '[]', '0'))
+
+url_test <- url("https://raw.githubusercontent.com/billynguyenlss/TMDB-Box/master/data/test.csv")
+test_set <- read.csv(url_test, na.strings=c("", '#N/A', '[]', '0'))
+
+url_sample_submission <- url("https://raw.githubusercontent.com/billynguyenlss/TMDB-Box/master/data/sample_submission.csv")
+sample_submission <- read.csv(url_sample_submission, na.strings=c("", '#N/A', '[]', '0'))
+```
+
+```{r, warning=FALSE}
+# combine train_set and test_set to reduce time to pre-processing data
+df <- bind_rows(train_set, test_set)
+```
+
+
 ## **Data overview**
+
+This dataset has been collected from TMDB. The movie details, credits and keywords have been collected from the TMDB Open API. This competition uses the TMDB API but is not endorsed or certified by TMDB. Their API also provides access to data on many additional movies, actors and actresses, crew members, and TV shows.
+
+
+The **train_set** have 3000 observations of 23 variables.
+
+```{r}
+dim(train_set)
+```
+
+The **test_set** has 4398 observations of 22 variables.
+
+```{r}
+dim(test_set)
+```
+
+Lets take a glimpse at our data to get a feel of how it looks like.
+
+```{r}
+glimpse(df)
+```
+
+We can classify and summarize the variables to data type continuous, discrete and date/time.
+
++ Continuous variables:
+  * id
+  * budget
+  * popularity
+  * runtime
+  * revenue
+
++ Discrete:
+  * belongs_to_collection
+  * genres
+  * homepage
+  * imdb_id
+  * original_language
+  * original_title
+  * overview
+  * poster_path
+  * production_companies
+  * production_countries
+  * spoken_languages
+  * status
+  * tagline
+  * title
+  * Keywords
+  * cast
+  * crew
+
++ Date/time:
+  * release_date
+
+**NA value**
+
+```{r}
+plot_missing(df)
+```
+
+There are total 23 variables.
 
 ## **Revenue**
 
-## **Variables**
+```{r}
+grid.arrange(
+train_set %>% ggplot(aes(revenue)) +
+  geom_histogram(fill = "steel blue", color = "white") +
+  labs(title = "frequency of revenue",
+       caption = "Figure - histogram using ggplot2 in train_set"),
+
+train_set %>% ggplot(aes(y = revenue)) +
+  geom_boxplot(fill = "steel blue") +
+  labs(title = "boxplot of revenue",
+       caption = "Figure = boxplot using ggplot2 in train_set") +
+  coord_flip(),
+ncol = 2)
+```
+
+
+## **Revenue vs continuous variables**
+
+The continuous variables include id, budget, popularity, runtime, revenue. The `id` have no meaning, so we will remove it out of our dataset.
+
+Let's take a look on the correlation between `revenue` and `budget`, `popularity`, `runtime`. We will use the train_set dataset to plot this correlation.
+
+```{r, warning=FALSE}
+grid.arrange(
+  train_set %>% ggplot(aes(log10(budget), log10(revenue))) +
+    geom_point(color = "steel blue", alpha = 0.5) +
+    geom_smooth() +
+    labs(title = "revenue vs budget",
+         caption = "Figure - scatter plot using ggplot2 on train_set"),
+  
+  train_set %>% ggplot(aes(log10(popularity), log10(revenue))) +
+    geom_point(color = "steel blue", alpha = 0.5) +
+    geom_smooth() +
+    labs(title = "revenue vs popularity",
+         caption = "Figure - scatter plot using ggplot2 on train_set"),
+  
+  train_set %>% ggplot(aes(runtime, revenue)) +
+    geom_point(color = "steel blue", alpha = 0.5) +
+    geom_smooth() +
+    labs(title = "revenue vs runtime",
+         caption = "Figure - scatter plot using ggplot2 on train_set"),
+  ncol = 2
+)
+```
+
+## **Revenue vs discrete variables**
+
+We have total 17 discrete variables. 
+
+**belongs_to_collection**
+
+This variable have greatest number of NA values. There are `r 100*round(mean(is.na(df$belongs_to_collection)),4)`
+% NA values and 
+`r 100*round(mean(!is.na(df$belongs_to_collection)),4)`
+% not-NA values. Let's take a look on the original values. 
+
+```{r}
+head(df$belongs_to_collection,10)
+```
+
+Not all strings are necessary, only the name of the collection is probably informative. We will remove all unnecessary strings by following code.
+
+```{r}
+# extract collection
+df$collection <- str_extract(df$belongs_to_collection, 
+            pattern = "(?<=name\\'\\:\\s{1}\\').+(?=\\'\\,\\s{1}\\'poster)")
+df$collection[is.na(df$collection)] <- "no collection"
+
+# quick review on the new feature collection
+head(df$collection)
+```
+
+We can add one new feature `collection_status` to classify 
+
+```{r}
+df <- df %>% mutate(collection_status = ifelse(collection == "no collection", 0, 1))
+
+grid.arrange(
+df %>% mutate(collection_status = factor(collection_status)) %>%
+  ggplot(aes(x = collection_status, fill = collection_status)) +
+  geom_bar() +
+  theme_classic() +
+  theme(legend.position = "none")+
+  scale_fill_manual(values = c("grey","steel blue")) +
+  labs(title = "frequency by collection status",
+       caption = "Figure - barplot & boxplot using ggplot2,
+       data df"),
+  
+df %>% mutate(collection_status = factor(collection_status)) %>%
+  ggplot(aes(x = collection_status, revenue, fill = collection_status)) +
+  geom_boxplot() +
+  theme_classic() +
+  theme(legend.position = "none") +
+  scale_fill_manual(values = c("grey","steel blue")) +
+  labs(title = "boxplot of collection status",
+       caption = "0 - not belong to any collection,
+        1 - belongs to collection"),
+
+ncol = 2)
+```
+
+What's top collection with greatest number of movies.
+
+```{r}
+df %>% filter(collection != "no collection") %>%
+  group_by(collection) %>%
+  summarize(count = n(), 
+            avg_budget = mean(budget, na.rm = TRUE), 
+            avg_revenue = mean(revenue, na.rm = TRUE)) %>%
+  arrange(desc(count)) %>% head(10) %>%
+  kable(caption = "Top collection with greatest number of movies") %>%
+  kable_styling(latex_options = c("HOLD_position"), position = "center")
+```
+
+What's collection with less number of movies?
+
+```{r}
+df %>% filter(collection != "no collection") %>%
+  group_by(collection) %>%
+  summarize(count = n(), 
+            avg_budget = mean(budget, na.rm = TRUE), 
+            avg_revenue = mean(revenue, na.rm = TRUE)) %>%
+  arrange(desc(count)) %>% tail(10) %>%
+  kable(caption = "Top collection with less number of movies", digits = 0) %>%
+  kable_styling(latex_options = c("HOLD_position"), position = "center")
+```
+
+
+
+  * genres
+  * homepage
+  * imdb_id
+  * original_language
+  * original_title
+  * overview
+  * poster_path
+  * production_companies
+  * production_countries
+  * spoken_languages
+  * status
+  * tagline
+  * title
+  * Keywords
+  * cast
+  * crew
 
 ## **Features engineering**
 
