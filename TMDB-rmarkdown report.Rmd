@@ -80,7 +80,7 @@ This document is the second project's report in the course HarvardX: PH125.9x Da
 
 ## **Overview**
 
-**TMDB Box Office Competition**
+### **TMDB Box Office Competition**
 
 *"Can you predict a movie's worldwide box office revenue?"*
 
@@ -90,11 +90,19 @@ On February $9^{th}, 2019$ Kaggle launch a competition, using the TMDB Box Offic
 
 *In this competition, you're presented with metadata on over 7,000 past films from The Movie Database to try and predict their overall worldwide box office revenue. Data points provided include cast, crew, plot keywords, budget, posters, release dates, languages, production companies, and countries. You can collect other publicly available data to use in your model predictions, but in the spirit of this competition, use only data that would have been available before a movie's release."*
 
-**Competition's dataset**
+### **Competition's dataset**
 
 The dataset used in this competition has been collected from TMDB. The movie details, credits and keywords have been collected from the TMDB Open API. This competition uses the TMDB API but is not endorsed or certified by TMDB. Their API also provides access to data on many additional movies, actors and actresses, crew members, and TV shows.
 
 This data contain 7398 movies and a variety of metadata obtained from The Movie Database (TMDB). Movies are labeled with id. Data points include cast, crew, plot keywords, budget, posters, release dates, languages, production companies, and countries. The dataset was subset to 2 dataset, the `train.csv` has 3000 movies and `test.csv` with 4398 movies.
+
+### **Additional dataset**
+
+Since this competition allowed for publicly available data, I retrieved the additional data from TMDB website (https://www.themoviedb.org/?language=en-US). 
+
+The TMDb packages was also available in R libraries (https://cran.r-project.org/web/packages/TMDb/index.html) which you can retrieve other features for this competition. 
+
+The instruction to retrieve data from TMDb website is reference from following link (http://www.planetanalytics.in/2017/05/how-to-extract-movie-data-from-movie.html). 
 
 **Competition evaluation**
 
@@ -102,33 +110,89 @@ To evaluate results, competitors must develop machine learning model to predict 
 
 Submissions are evaluated on Root-Mean-Squared-Logarithmic-Error (RMSLE) between the predicted value and the actual revenue. Logs are taken to not overweight blockbuster revenue movies.
 
+Since this competition completed on May $31^{st}$, following is the final public leaderboard.
+
+```{r, fig.width=8, include=FALSE}
+# import leaderboard data
+url_leaderboard <- url("https://raw.githubusercontent.com/billynguyenlss/TMDB-Box/master/data/tmdb-publicleaderboard.csv")
+tmdb_leaderboard <- read.csv(url_leaderboard, na.strings=c("", '#N/A', '[]', '0'))
+
+tmdb_leaderboard$SubmissionDate <- ymd_hms(tmdb_leaderboard$SubmissionDate)
+```
+
+```{r, include=FALSE}
+final_board <- tmdb_leaderboard %>% group_by(TeamName) %>%
+  summarize(submitted_times = n(),
+            best_score = min(Score)) %>% arrange(best_score)
+```
+
+```{r, include=FALSE}
+top_10 <- final_board[140,3]
+```
+
+```{r, fig.width=8}
+final_board %>% 
+  ggplot(aes(best_score)) +
+  geom_histogram(fill = "steel blue", binwidth = 0.1) +
+  scale_x_continuous(minor_breaks = seq(0, 30, 1)) +
+  geom_vline(xintercept = 1.7068, color = "red") +
+  geom_text(aes(x = 5, y = 240, label = "top 10% (RMSLE < 1.7068)"), color = "red") +
+  labs(title = "TMDB Box office competition final leaderboard",
+       caption = "Data source from Kaggle's TMDB Box office competition public leaderboard")
+```
+
+
+```{r}
+final_board %>% head(10) %>%
+  kable(caption = "Top 10 best Score in TMDB Box Office Competition") %>%
+  kable_styling(latex_options = c("HOLD_position"))
+```
+
+
 ## **My objective**
 
 My objective are:
 
-1) To develop a machine learning model to predict the internaltion box office revenue and submit to Kaggle TMDB Box Office Competition. My target is jumped in top 20% in this competition.
+1) To develop a machine learning model to predict the internaltion box office revenue and submit to Kaggle TMDB Box Office Competition. My target is reducing RMSLE as much as possible.
 
 2) To practice data exploratory analysis, text mining, data visualization using tidyverse, ggplot2, caret, lubridate.
 
-3) To improve my business writing and reporting skills, using `rmarkdown`. So if you have
+3) To improve my business writing and reporting skills, using `rmarkdown`. 
 
 ## **Project methodology**
 
 This project has 4 main steps:
 
-+ Step 1 **data exploratory analysis**: explore and visualize the data to have an overview with-in and between the variables, what's insights gained after analysis. Main package for this step is tidyverse, to handle the cleaning, exploring and visualizing tasks.
++ Step 1 **data exploratory analysis**: exploring, cleaning, visualizing the data to have an overview with-in and between the variables, what's insights gained after analysis. Main package for this step is tidyverse, to handle the cleaning, exploring and visualizing tasks.
 
-+ Step 2: develop **concept of analysis and modeling**. Inputs for this step are insights gained in previous step, the modeling concept from BellKor Pragmatic Chaos - Netflix Grand Prize Winning model, the techniques and model introduced by Dr. Rafael A. Irizarry in the book *"Introduction to Data Science - Data Analysis and Prediction Algorithms with R"*.
++ Step 2:**features engineering**  Inputs for this step are insights gained in previous step, and some best score kernels in Kaggle. Below are some kernel which inspired me to complete my report.
 
-+ Step 3: **analyze and build up the model**. In parallel with step 2, we develop the model using edx data set and evaluate its effectiveness by using RMSE on its true rating. Because the edx data set has approximate 9 million rows and we want to get high productivity building up our recommendation model, therefore we use simple calculation method and function in R.
+  * Zero92's kernel (RMSLE = 1.6998) https://www.kaggle.com/zero92/tmdb-prediction
+  * tavoosi's kernel (RMSLE = 1.95841) https://www.kaggle.com/tavoosi/predicting-box-office-revenue-with-random-forest
 
-+ Step 4: **final evaluate the model** on the validation set using RMSE.
+**Noted:** even the Kaggle mention *"use only data that would have been available before a movie's release"*, I found that many competitors used the vote count and vote average in their model, which should be available after the movie's release.
+  
++ Step 3: **modeling and performance evaluation**. we develop predicting model using Caret package and evaluate its effectiveness by using RMLSE. The RMLSE are following:
+
+$ RMLSE = \sqrt{\frac{\sum_{i = 1}^{n} (log y_{i} - log \hat{y}_{i})^{2}}{n}} $
+
+```{r}
+# write function RMLSe to evaluate modeling performance
+RMLSE <- function(predicted_revenue, true_revenue){
+  sqrt(mean((log(true_revenue)- log(predicted_revenue))^2))
+}
+```
+
+
++ Step 4: **final evaluate the model** on the test set and submit to Kaggle's leaderboards.
 
 # **Data exploratory analysis**
 
 ## **Data preparation**
 
 Download data from my github repo and import to R global environment.
+
+**Competition's dataset**
 
 ```{r}
 # download raw data from my github repo
@@ -147,6 +211,23 @@ sample_submission <- read.csv(url_sample_submission, na.strings=c("", '#N/A', '[
 # combine train_set and test_set to reduce time to pre-processing data
 df <- df %>% mutate_if(is.factor, as.character)
 df <- bind_rows(train_set, test_set)
+```
+
+**Additional dataset**
+
+```{r}
+# download additional data from my github repo
+
+url_additional <- url("https://raw.githubusercontent.com/billynguyenlss/TMDB-Box/master/data/personal%20additional%20data/full_additional_features.csv")
+addition_data <- read.csv(url_additional, na.strings=c("", '#N/A', '[]', '0'))
+```
+
+```{r}
+# extract the true_rating value from additional data
+test_y <-left_join(test_set, addition_data, by = "imdb_id") %>%
+  select(revenue)
+test_y$revenue[is.na(test_y$revenue)] <- median(test_y$revenue, na.rm = T)
+test_y <- test_y$revenue
 ```
 
 
@@ -170,44 +251,33 @@ Lets take a glimpse at our data to get a feel of how it looks like.
 glimpse(df)
 ```
 
-We can classify and summarize the variables to data type continuous, discrete and date/time.
+We can classify and summarize the variables to data type continuous, discrete and date/time. I don't include the first column `id` in this table due to its meaning is only ordering number. The variables `imdb_id` is the identified number in imdb system, so I don't include it in below table as well. But please notice that the `imdb_id` is important to retrieve additional data from TMDb database.
 
-+ Continuous variables:
-  * id
-  * budget
-  * popularity
-  * runtime
-  * revenue
-
-+ Discrete:
-  * belongs_to_collection
-  * genres
-  * homepage
-  * imdb_id
-  * original_language
-  * original_title
-  * overview
-  * poster_path
-  * production_companies
-  * production_countries
-  * spoken_languages
-  * status
-  * tagline
-  * title
-  * Keywords
-  * cast
-  * crew
-
-+ Date/time:
-  * release_date
+Continuous variables            Discrete variables          Date/time
+------------------------------  --------------------------  ------------------
+budget                          belongs_to_collection       release_date
+popularity                      genres
+runtime                         homepage
+revenue                         original_language
+                                original_title
+                                overview
+                                poster_path
+                                production_companies
+                                production_contries
+                                spoken_languages
+                                tagline
+                                Keywords
+                                cast
+                                crew
+------------------------------  --------------------------  ------------------  
 
 **NA value**
 
-```{r}
+```{r, fig.height=5}
 plot_missing(df)
 ```
 
-There are total 23 variables.
+# **Data exploratory analysis**
 
 ## **Revenue**
 
@@ -363,7 +433,6 @@ As we see the R-squared is
 `r results$rsquared`
 . Now we analyze remain discrete variables to find insights to improve our model.
 
-
 ## **Revenue vs discrete variables**
 
 We have total 17 discrete variables. Some variables have no or less informative information which I decide not to analyze them in this report (`id`, `tagline`, `title`).
@@ -481,14 +550,15 @@ Let's take a look on the genres.
 head(df$genres)
 ```
 
+A movie can have one genre or multiple genres. Each genre represents by following text *"{'id': 35, 'name': 'Comedy'}"* and separate by comma.
+
 Replace NA value by "no genre".
 
 ```{r}
 df$genres[is.na(df$genres)] <- "no genre"
 ```
 
-
-We will extract the first genre from the genres strings to get the main genre for each movie. First, we will create a vector with the genres we want to extract. Next, we will extract the genres and add them to a new variable called main_genre.
+We will extract the first genre from the genres strings to get the main genre for each movie. First, we will create a vector with the genres we want to extract. Next, we will extract the genres and add them to a new variable called `main_genre`.
 
 ```{r}
 genres_matching_point <- "Comedy|Horror|Action|Drama|Documentary|Science Fiction|
@@ -539,7 +609,7 @@ df %>%
 ncol = 2)
 ```
 
-Top three common genres are Drama, Comedy, Action, but top three genres with greatest revenue are Adventure, Animation, Science Fiction.
+Top three common genres are *Drama, Comedy, Action*, but top three genres with greatest revenue are *Adventure, Animation, Science Fiction*.
 
 Because a movie could have more than one genre, therefore we create the new variable to visualize the total genres of each movie.
 
@@ -590,7 +660,7 @@ The rsquared is
 `r results[2,2]`
 which is not a big improvement.
 
-##  **homepage**
+### **homepage**
 
 Let's see the top 10 rows of homepage.
 
@@ -600,7 +670,7 @@ head(df$homepage, 10)
 
 There are total 
 `r 100*round(mean(is.na(df$homepage)),4)`
-% NA values and in this variable. Do a movie with homepage have better revenue than other movies? Now we add one new feature `homepage_status` with 2 levels "no homepage" and "has homepage".
+% NA values and in this variable. Do a movie with homepage have better revenue than other movies? Now we add one new feature `homepage_status` with 2 levels "no homepage" and "has homepage" to answer above question.
 
 ```{r}
 df$homepage_status <- ifelse(is.na(df$homepage), "no homepage","has homepage")
@@ -634,7 +704,7 @@ The rsquared is
 `r results[3,2]`
 which is not a significant improvement on our model. We can exclude this feature out.
 
-##  **original_language**
+### **original_language**
 
 Create summary table of `original_language`.
 
@@ -685,7 +755,7 @@ The rsquared is
 `r results[4,2]` 
 which is not a significant improvement.
 
-##  **production_companies**
+### **production_companies**
 
 Let's take a look on the top 10 rows of production_companies.
 
@@ -798,11 +868,15 @@ first_company_summary %>% arrange(desc(ROI_per_company)) %>% head(10)
 ```
 
 
-##  **production_countries**
+### **production_countries**
+
+* First 10 values of `production_countries`. Each country represent by following text "{'iso_3166_1': 'US', 'name': 'United States of America'}" and separate by comma.
 
 ```{r}
-head(df$production_countries)
+head(df$production_countries, 10)
 ```
+
+Now we remove all unnecessary strings and keep only the country's name in the new feature `country`.
 
 ```{r}
 df$country <- gsub("(\\[\\{\\'.*name\\'\\:\\s{1}\\')|(\\'\\}\\])","",head(df$production_countries))
@@ -811,6 +885,8 @@ df$country[is.na(df$country)] <- "no country info"
 
 table(df$country)
 ```
+
+Adding `country` to the linear model and see
 
 ```{r}
 fit_lm <- lm(revenue ~ budget + popularity + runtime + 
@@ -826,7 +902,7 @@ results
 
 The rsquared is 0.5991 which is not any improvement.
 
-##  **spoken_languages**
+### **spoken_languages**
 
 Let's take a look on top rows of `spoken_languages`.
 
@@ -834,7 +910,7 @@ Let's take a look on top rows of `spoken_languages`.
 df$spoken_languages %>% head(10)
 ```
 
-`spoken_languages` represent by two letters and its name. We firstly create new feature `n_spoken_languages` represent for the number of spoken languages of a movie. Then we replace all unnecessary strings in the `spoken_languages`.
+Each spoken language represent by following text "{'iso_639_1': 'en', 'name': 'English'}". We firstly create new feature `n_spoken_languages` represent for the number of spoken languages of a movie. Then we replace all unnecessary strings in the `spoken_languages`.
 
 ```{r}
 df$n_spoken_languages <- str_count(df$spoken_languages, pattern = "name")
@@ -886,11 +962,9 @@ results
 
 The rsquared is 0.5993 which is not a significant improvement.
 
-## **cast**
+### **cast**
 
-Let's take a look on `cast`. We have too many strings here. Each cast represent by cast_id, character, credit_id, gender, name, order number, profile_path as following example:
-
-*{'cast_id': 4, 'character': 'Lou', 'credit_id': '52fe4ee7c3a36847f82afae7', 'gender': 2, 'id': 52997, 'name': 'Rob Corddry', 'order': 0, 'profile_path': '/k2zJL0V1nEZuFT08xUdOd3ucfXz.jpg'}*
+Let's take a look on `cast`. Each `cast` represent by following text "{'cast_id': 4, 'character': 'Lou', 'credit_id': '52fe4ee7c3a36847f82afae7', 'gender': 2, 'id': 52997, 'name': 'Rob Corddry', 'order': 0, 'profile_path': '/k2zJL0V1nEZuFT08xUdOd3ucfXz.jpg'}".
 
 Now we create a new feature to summarize the number of cast of a movie.
 
@@ -991,11 +1065,9 @@ cast_summary %>% arrange(desc(avg_revenue_per_cast)) %>%
   head(10)
 ```
 
-##  **crew**
+### **crew**
 
-Crew contain the production team of a movie, each member is represent by following strings and separated by comma:
-
-*{'credit_id': '59ac067c92514107af02c8c8', 'department': 'Directing', 'gender': 0, 'id': 1449071, 'job': 'First Assistant Director', 'name': 'Kelly Cantley', 'profile_path': None}*
+Crew contain the production team of a movie, each member represents by following strings "{'credit_id': '59ac067c92514107af02c8c8', 'department': 'Directing', 'gender': 0, 'id': 1449071, 'job': 'First Assistant Director', 'name': 'Kelly Cantley', 'profile_path': None}" and separate with other members by comma.
 
 **Noted** Because the length of strings is too long, I didn't copy it to this report.
 
@@ -1030,7 +1102,11 @@ results
 
 The rsquared is 0.5992 which is not any improvement.
 
-Now we extract the director's name from `crew`.
+**Effect by director**
+
+A film director controls a film's artistic and dramatic aspects and visualizes the screenplay (or script) while guiding the technical crew and actors in the fulfilment of that vision. The director has a key role in choosing the cast members, production design, and the creative aspects of filmmaking.(*Reference: https://en.wikipedia.org/wiki/Film_director*)
+
+To evaluate impact from a director, we extract the director's name from `crew` by following code:211`
 
 ```{r}
 # extract the director name
@@ -1064,7 +1140,7 @@ director_summary %>% arrange(desc(avg_revenue_per_director)) %>%
   head(10)
 ```
 
-## **release_date**
+### **release_date**
 
 Take a look on the `release_date` feature.
 
@@ -1341,7 +1417,7 @@ summary(dat$new_budget)
 corrplot.mixed(cor(na.omit(dat)), upper = "ellipse", lower = "number")
 ```
 
-## **Modeling**
+# **Modeling**
 
 ```{r}
 fit_rf <- train(revenue ~ ., 
@@ -1504,4 +1580,117 @@ summary(sample_submission)
 
 
 # **Reference**
+
+```{r}
+df <- df %>% left_join(addition_data, by = "imdb_id")
+names(df)
+```
+
+
+```{r}
+dat <- df %>% 
+  select(budget, popularity.y, runtime.x,
+         avg_revenue_per_collection,
+         movies_per_company, ROI_per_company,
+         movies_per_director, avg_revenue_per_director,
+         n_cast, n_crew, n_spoken_languages,
+         revenue.x, vote_average, vote_count)
+
+dat <- df %>% select(imdb_id, budget, popularity.x, runtime.x, number_genres,
+                     number_of_company, n_spoken_languages, 
+                     n_cast, n_crew, 
+                     avg_revenue_per_collection, 
+                     movies_per_director, avg_revenue_per_director,
+                     avg_revenue_per_cast.x, avg_revenue_per_cast.y,
+                     ROI_per_company, movies_per_company,
+                     vote_average, vote_count)
+
+df$budget[df$imdb_id == "tt0475783"] <- 8000000
+df$budget[df$imdb_id == "tt1408101"] <- 190000000
+df$revenue[df$imdb_id == "tt1408101"] <- 228778661
+df$budget[df$imdb_id == "tt1913166"] <- 10000000
+
+
+colSums(is.na(dat))
+
+for (i in 2:ncol(dat)){
+  dat[is.na(dat[,i]),i] <- median(dat[,i], na.rm = T)
+}
+dat$new_budget.x <- log10(dat$new_budget.x)
+dat$avg_revenue_per_collection <- log10(dat$avg_revenue_per_collection)
+dat$avg_revenue_per_director <- log10(dat$avg_revenue_per_director)
+```
+
+## correct budget
+
+```{r}
+length(filter(dat, budget < 20000))
+```
+
+Convert wrong budget number to NA.
+
+```{r}
+dat$budget[dat$budget < 20000] <- NA
+```
+
+Separate budget to train and test dataset. I apply random forest to predict the missing budget.
+
+```{r}
+train_budget <- dat[!is.na(dat$budget),-12] 
+
+budget_NA <- dat[is.na(dat$budget),-12]
+```
+
+```{r}
+control <- trainControl(method = "cv",
+                        number = 3,
+                        p = 0.8)
+
+fit_budget <- train(budget ~ .,
+                    data = train_budget,
+                    method = "rf",
+                    trControl = control)
+
+fit_budget$results$Rsquared
+```
+
+```{r}
+dat$new_budget <- predict(fit_budget, dat)
+
+dat <- dat %>% mutate(new_budget = ifelse(is.na(budget), new_budget, budget))
+```
+
+## modeling
+
+```{r}
+fit_one <- train(dat[1:3000,-12],
+                   log10(revenue),
+                   method = "rf",
+                   trControl = trainControl(method = "cv",
+                                            number = 5,
+                                            p = 0.8))
+
+fit_one$results$Rsquared
+
+```
+
+```{r}
+
+yhat_one <- predict(fit_one, newdata = dat[3001:7398,-12])
+mean(is.na(yhat_one))
+```
+
+```{r}
+RMLSE(10^yhat_one, test_y)
+```
+
+```{r}
+summary(10^yhat_one)
+```
+
+```{r}
+sample_submission$revenue <- 10^yhat_one
+names(sample_submission) <- c("id","revenue")
+write.csv(sample_submission, file = "submission_one.csv", row.names = F)
+```
 
