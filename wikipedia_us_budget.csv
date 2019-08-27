@@ -1801,12 +1801,12 @@ tt0120190,$50 million[1],50,1,50000000
 tt1349451,$50 million[1],50,1,50000000
 tt1710417,$50 million[1],50,1,50000000
 tt0059112,$50 million[1],50,1,50000000
-tt3179568,$31 million[1] (equivalent to $51 million in 2018),51,1,51000000
-tt1133617,$31 million[1] (equivalent to $51 million in 2018),51,1,51000000
-tt3086442,$31 million[1] (equivalent to $51 million in 2018),51,1,51000000
-tt3132094,$31 million[1] (equivalent to $51 million in 2018),51,1,51000000
-tt0087175,$31 million[1] (equivalent to $51 million in 2018),51,1,51000000
-tt0110557,$31 million[1] (equivalent to $51 million in 2018),51,1,51000000
+tt3179568,$31 million[1] (equivalent to $51 million in 2018),51,1,31000000
+tt1133617,$31 million[1] (equivalent to $51 million in 2018),51,1,31000000
+tt3086442,$31 million[1] (equivalent to $51 million in 2018),51,1,31000000
+tt3132094,$31 million[1] (equivalent to $51 million in 2018),51,1,31000000
+tt0087175,$31 million[1] (equivalent to $51 million in 2018),51,1,31000000
+tt0110557,$31 million[1] (equivalent to $51 million in 2018),51,1,31000000
 tt1700845,$60 million,60,1,60000000
 tt0092494,$60 million[3],60,1,60000000
 tt3104818,$60 million,60,1,60000000
@@ -1829,27 +1829,15 @@ tt2402105,$70 million[2],70,1,70000000
 tt3344922,$70 million[2],70,1,70000000
 tt2380247,$70 million[2],70,1,70000000
 tt1485763,$70 million[2],70,1,70000000
-tt1517252,"8 million Danish krone
-(USD$1.2 million)",81.2,1,81200000
-tt0099028,"8 million Danish krone
-(USD$1.2 million)",81.2,1,81200000
-tt0037536,"8 million Danish krone
-(USD$1.2 million)",81.2,1,81200000
-tt0083291,"8 million Danish krone
-(USD$1.2 million)",81.2,1,81200000
-tt1407065,"8 million Danish krone
-(USD$1.2 million)",81.2,1,81200000
-tt0093106,"8 million Danish krone
-(USD$1.2 million)",81.2,1,81200000
 tt0084867,$90 million[2],90,1,90000000
 tt4449576,$90 million[2],90,1,90000000
 tt0808331,$90 million[2],90,1,90000000
 tt0374546,$90 million[2],90,1,90000000
 tt1856053,$90 million[2],90,1,90000000
 tt0072951,$90 million[2],90,1,90000000
-tt2112096,"$800,000[1] or $1.4 million[2]",800000,1,8E+11
-tt2064713,"$800,000[1] or $1.4 million[2]",800000,1,8E+11
-tt0140796,"$800,000[1] or $1.4 million[2]",800000,1,8E+11
-tt4630444,"$800,000[1] or $1.4 million[2]",800000,1,8E+11
-tt0093220,"$800,000[1] or $1.4 million[2]",800000,1,8E+11
-tt0093476,"$800,000[1] or $1.4 million[2]",800000,1,8E+11
+tt2112096,"$800,000[1] or $1.4 million[2]",800000,1,800000
+tt2064713,"$800,000[1] or $1.4 million[2]",800000,1,800000
+tt0140796,"$800,000[1] or $1.4 million[2]",800000,1,800000
+tt4630444,"$800,000[1] or $1.4 million[2]",800000,1,800000
+tt0093220,"$800,000[1] or $1.4 million[2]",800000,1,800000
+tt0093476,"$800,000[1] or $1.4 million[2]",800000,1,800000
