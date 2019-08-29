@@ -2,7 +2,9 @@
 title: "TMDB Box revenue prediction"
 author: "Nguyen Bao Long"
 date: "8/19/2019"
-output: html_document
+output:
+  word_document: default
+  html_document: default
 ---
 
 \newpage
@@ -73,7 +75,7 @@ library(GGally)
 
 ## **Background**
 
-This document is the second project's report in the course HarvardX: PH125.9x Data Science: Capstone project. This document consists 4 sections and describes my solution to develop a machine learning model to predict movie's worldwide box office revenue using TMDb dataset.
+This document is the second project's report in the course HarvardX: PH125.9x Data Science: Capstone project. Inspired by the Kaggle TMDb Box Office Competition [1], this document describes my solution to develop a machine learning model to predict movie's worldwide box office revenue.
 
 * Section 1: describe project background, goal and overview on the dataset.
 
@@ -97,21 +99,23 @@ On February $9^{th}, 2019$ Kaggle launch a competition, using the TMDB Box Offic
 
 ### **Competition's dataset**
 
-The dataset used in this competition has been collected from TMDB. The movie details, credits and keywords have been collected from the TMDB Open API. This competition uses the TMDB API but is not endorsed or certified by TMDB. Their API also provides access to data on many additional movies, actors and actresses, crew members, and TV shows.
+The dataset used in this competition has been collected from the Movies Database (https://www.themoviedb.org/). The movie details, credits and keywords have been collected from the TMDB Open API. This competition uses the TMDB API but is not endorsed or certified by TMDB. Their API also provides access to data on many additional movies, actors and actresses, crew members, and TV shows.
 
-This data contain 7398 movies and a variety of metadata obtained from The Movie Database (TMDB). Movies are labeled with id. Data points include cast, crew, plot keywords, budget, posters, release dates, languages, production companies, and countries. The dataset was subset to 2 dataset, the `train.csv` has 3000 movies and `test.csv` with 4398 movies.
+This data contain 7398 movies and a variety of metadata. Movies are labeled with id. Data points include cast, crew, plot keywords, budget, posters, release dates, languages, production companies, and countries. The dataset was subset to 2 dataset, the `train.csv` has 3000 movies and `test.csv` with 4398 movies.
 
 ### **Additional dataset**
 
-Since this competition allowed for publicly available data, I retrieved the additional data from TMDB website (https://www.themoviedb.org/?language=en-US). 
+Since this competition allowed for publicly available data, I retrieved the first additional data by from TMDB website (https://www.themoviedb.org/?language=en-US). 
 
 The TMDb packages was also available in R libraries (https://cran.r-project.org/web/packages/TMDb/index.html) which you can retrieve other features for this competition. 
 
-The instruction to retrieve data from TMDb website is reference from following link (http://www.planetanalytics.in/2017/05/how-to-extract-movie-data-from-movie.html). 
+The instruction to retrieve data from TMDb website is reference from following link (http://www.planetanalytics.in/2017/05/how-to-extract-movie-data-from-movie.html).
+
+The second additional data is from wikipedia, using web scrapping techniques by rvest package.
 
 **Competition evaluation**
 
-To evaluate results, competitors must develop machine learning model to predict the international box office revenue for each movie. For each id in the test set, competitors must predict the value of the revenue variable. 
+To evaluate results in Kaggle's competition, competitors must develop machine learning model to predict the international box office revenue for each movie. For each id in the test set, competitors must predict the value of the revenue variable. 
 
 Submissions are evaluated on Root-Mean-Squared-Logarithmic-Error (RMSLE) between the predicted value and the actual revenue. Logs are taken to not overweight blockbuster revenue movies.
 
@@ -158,11 +162,11 @@ final_board %>% head(10) %>%
 
 My objective are:
 
-1) To develop a machine learning model to predict the internaltion box office revenue and submit to Kaggle TMDB Box Office Competition. My target is reducing RMSLE as much as possible.
+1) To develop a machine learning model to predict the internaltion box office revenue and reduce RMSLE as much as possible.
 
-2) To practice data exploratory analysis, text mining, data visualization using tidyverse, ggplot2, caret, lubridate.
+2) To practice data exploratory analysis skills, text mining using `stringr`, data visualization using `ggplot2`, summarize and transform data using `dplyr`, web scrapping using `rvest`.
 
-3) To improve my business writing and reporting skills, using `rmarkdown`. 
+3) To improve my business writing and reporting skills, using `rmarkdown` and kable function.
 
 ## **Project methodology**
 
@@ -177,7 +181,7 @@ This project has 4 main steps:
 
 **Noted:** even the Kaggle mention *"use only data that would have been available before a movie's release"*, I found that many competitors used the vote count and vote average in their model, which should be available after the movie's release.
   
-+ Step 3: **modeling and performance evaluation**. we develop predicting model using Caret package and evaluate its effectiveness by using RMLSE. The RMLSE are following:
++ Step 3: **modeling and performance evaluation**. we develop predicting model using Caret package and evaluate its effectiveness by using RMLSE. The true revenue for this step is received from TMDb, using API and package TMDb. The RMLSE are calculated by following formula:
 
 $ RMLSE = \sqrt{\frac{\sum_{i = 1}^{n} (log y_{i} - log \hat{y}_{i})^{2}}{n}} $
 
@@ -188,8 +192,6 @@ RMLSE <- function(predicted_revenue, true_revenue){
 }
 ```
 
-
-+ Step 4: **final evaluate the model** on the test set and submit to Kaggle's leaderboards.
 
 # **Data exploratory analysis**
 
@@ -214,10 +216,10 @@ sample_submission <- read.csv(url_sample_submission, na.strings=c("", '#N/A', '[
 
 Combine train and test dataset to one data to save time for features preprocessing.
 
-```{r, warning=FALSE}
+```{r combine train test data, warning=FALSE}
 # combine train_set and test_set to reduce time to pre-processing data
 train_set <- train_set %>% mutate_if(is.factor, as.character)
-test_set <- test_set %>% mutate_if(is.character, as.factor)
+test_set <- test_set %>% mutate_if(is.factor, as.character)
 df <- bind_rows(train_set, test_set)
 ```
 
@@ -229,6 +231,11 @@ df <- bind_rows(train_set, test_set)
 url_additional <- url("https://raw.githubusercontent.com/billynguyenlss/TMDB-Box/master/data/personal%20additional%20data/full_additional_features_2.csv")
 addition_data <- read.csv(url_additional, na.strings=c("", '#N/A', '[]', '0'))
 ```
+
+```{r}
+str(addition_data)
+```
+
 
 Because the true revenue was available on the TMDb dataset, I extract it to a vector named `test_y` for final modeling performance evaluation.
 
@@ -263,7 +270,7 @@ glimpse(df)
 We can classify and summarize the variables to data type continuous, discrete and date/time. I don't include the first column `id` in this table due to its meaning is only ordering number. The variables `imdb_id` is the identified number in imdb system, so I don't include it in below table as well. But please notice that the `imdb_id` is important to retrieve additional data from TMDb database.
 
 Continuous variables    Discrete variables      Date/time     
-----------------------  ----------------------  ------------- -------------
+----------------------  ----------------------  ------------- 
 budget                  belongs_to_collection   release_date
 popularity              genres
 runtime                 homepage
@@ -278,21 +285,6 @@ revenue                 original_language
                         Keywords
                         cast
                         crew
-
-Variable               Type     Structure                                                     Preprocessing plan
----------------------- -------- ------------------------------------------------------------- ---------------------
-revenue                int      12314651, 95149435, 13092000 ...                              to EDA
-budget                 int      14000000,  NA                                                 to EDA
-popularity             dbl      6.575393, 8.248895 ...                                        to EDA
-runtime                int      93, 113, 105, 122, 118 ...                                    to EDA
-belongs_to_collection  chr      {'id': 313576, 'name': 'Hot Tub Time Machine Collection'...   extract name
-genres                 chr      {'id': 35, 'name': 'Comedy'}                                  extract name
-homepage               chr      "http://kahaanithefilm.com/", NA ...                          to EDA
-imdb_id                chr      "tt2637294", "tt0368933" ...                                  no
-original_language      chr      "en", "en", "en", "hi" ...                                    to EDA
-original_title         chr      "Hot Tub Time Machine 2" ...                                  no
-overview               chr      "When Lou, who has become the father..."                      no
-
 
 **NA value**
 
@@ -342,11 +334,109 @@ Not many movies have great revenue.
 `r 100 - 100*round(mean(train_set$revenue <= average_revenue),3)`
 % movies have revenue greater than the average revenue.
 
+### **release_date**
+
+Now we take a look on the `revenue` change by time.
+
+```{r}
+head(df$release_date)
+```
+
+Now convert release_date from current type "character" to "date-time".
+
+```{r}
+df$release_date <- mdy(df$release_date)
+summary(df$release_date)
+```
+
+The latest release_date is "2068-12-30" which is impossible. There are total
+`r df %>% filter(release_date >= today()) %>% nrow`
+days later than this time I am doing this report on August $27^{th}$, 2019.
+We also have 1 NA value in the `release_date`. 
+
+To correct the `release_date`, I use the release date in additional data set. Now we joining the addition data to our dataset.
+
+```{r}
+# left joining the addition data into df
+df <- df %>% left_join(addition_data[,c(1,2,3,7:13)], by = "imdb_id")
+df$new_release_date <- as.character(df$new_release_date)
+
+# replace wrong release data
+df <- df %>% 
+  mutate(new_release_date = mdy(new_release_date)) %>%
+  mutate(release_date = ifelse(release_date >= ymd("2019-05-31"),
+                               new_release_date, release_date)) %>%
+  mutate(release_date = ifelse(is.na(release_date),
+                               new_release_date, release_date)) %>%
+  mutate(release_date = as_date(release_date))
+```
+
+Calculate the `release_year` and `release_month`.
+
+```{r}
+df$release_year <- year(df$release_date)
+df$release_month <- month(df$release_date)
+```
+
+```{r, fig.width=7.5, fig.height=3.5}
+grid.arrange(
+  df %>% 
+    ggplot(aes(release_year)) +
+    geom_bar(fill = "steel blue") +
+    labs(title = "Number of movies by release year"),
+  
+  df %>% ggplot(aes(release_month)) +
+    geom_bar(fill = "steel blue", color = "white") +
+    labs(title = "Number of movies by release month"),
+
+  ncol = 2
+)
+```
+
+```{r}
+summary(df$release_date)
+```
+
+The movies box office growth slowly before decade 1980s , 25% movies released in 
+`r 1993 - 1921`
+years from 1921 to 1993, and 25% others movies released in
+`r 2004 - 1993`
+years from 1993 to 2004. 
+
+```{r,fig.width=8}
+df <- df %>% mutate(revenue_status = ifelse(is.na(revenue),"unknown revenue","known revenue")) %>%
+  mutate(revenue_status = factor(revenue_status))
+
+grid.arrange(
+    df %>% 
+    group_by(release_year, revenue_status) %>%
+    summarize(total_budget = sum(budget, na.rm = T)) %>%
+    ggplot(aes(release_year, total_budget, fill = revenue_status)) +
+    geom_col(color = "white") +
+    scale_fill_manual(values = c("grey","steel blue")) +
+    theme_classic()+
+    theme(legend.position = "none") + ylim(0,1.5e10)+
+      labs(title = "budget change by time"),
+  
+  df %>% group_by(release_year) %>%
+    summarize(total_known_revenue = sum(revenue, na.rm = T)) %>%
+    ggplot(aes(release_year, total_known_revenue)) +
+    geom_col(color = "white", fill = "steel blue") +
+    theme_classic()+
+    theme(legend.position = "none")+ ylim(0,1.5e10) +
+    labs(title = "known revenue change by time"),
+  
+  ncol = 2)
+```
+
+Based on the ratio of unknown revenue by release year and current revenue, we can estimate the total unknown revenue.
+
 ## **Revenue vs continuous variables**
 
 The continuous variables include id, budget, popularity, runtime, revenue. The `id` have no meaning, so we will remove it out of our dataset.
 
 ```{r, fig.height=5, fig.width=8}
+# overview graph on budget, revenue, runtime, popularity, ROI
 grid.arrange(
   train_set %>% ggplot(aes(budget)) +
     geom_histogram(fill = "steel blue", color = "white"),
@@ -357,7 +447,7 @@ grid.arrange(
   train_set %>% ggplot(aes(runtime)) +
     geom_histogram(fill = "steel blue", color = "white"),
   
-  train_set %>% ggplot(aes(revenue)) +
+  train_set %>% ggplot(aes(popularity)) +
     geom_histogram(fill = "steel blue", color = "white"),
   
   # histogram ROI (filter out budget less than 50000)
@@ -395,10 +485,12 @@ train_set %>% select(budget, revenue) %>%
                    ifelse(count == 10, "wrong revenue","-")))))
 ```
 
-The biggest impact come from NA value budgets. Since this competition allow to find the additional data, I scrapped data from wikipedia to correct the budget data. Because of the long processing time to scrapping and pre-processing, I copied but not allowed the scrapping code running in my report. You can refer to the scrapping code in Appendix section or download it direct from my github repo. 
+### **Budget**
+
+The biggest impact come from NA value budgets. Since this competition allow to find the additional data, I scrapped data from wikipedia to correct the budget data. Because of the long processing time to scrapping and pre-processing, I copied but not allowed the scrapping code running in my report. You can refer to the scrapping code in Appendix section or download the completed file from my github repo. 
 
 ```{r}
-url_wikipedia_budget <- url("https://raw.githubusercontent.com/billynguyenlss/TMDB-Box/master/data/personal%20additional%20data/wikipedia_budget.csv")
+url_wikipedia_budget <- url("https://raw.githubusercontent.com/billynguyenlss/TMDB-Box/master/wikipedia_us_budget.csv")
 wikipedia_budget <- read.csv(url_wikipedia_budget, na.strings=c("", '#N/A', '[]', '0'))
 
 wikipedia_budget$final_budget <- as.numeric(wikipedia_budget$final_budget)
@@ -408,177 +500,150 @@ mean(is.na(wikipedia_budget$final_budget))
 Now joining the wikipedia to our data. The NA value now is only 0.12%.
 
 ```{r}
+# joining addition wikipedia budget
 df <- df %>% mutate(imdb_id = as.factor(imdb_id)) %>%
-  left_join(new_budgets[,c(1,5)],by = "imdb_id")
+  left_join(wikipedia_budget[,c(1,2,5)],by = "imdb_id")
+
+#replace low budget value
+df <- df %>% 
+  mutate(budget = ifelse(budget <= 1000 & revenue > 10000, final_budget, budget))
+
+# replace NA budget value by wikipedia budget
 df <- df %>% mutate(budget = ifelse(is.na(budget),
                                     final_budget, budget))
 mean(is.na(df$budget))
 ```
 
-We replace the NA values in `runtime`, `budget` by median value.
+
+```{r}
+summary(df$budget)
+```
+
+Due to complication in budget exchange from different currencies to usd, as well as the exchange rate uncertainty during time, I replaced other NA values in `budget` by the median value by movie's release year.
+
+```{r}
+# create summary budget table by release year
+budget_by_year <- df %>%
+  group_by(release_year) %>%
+  summarize(avg_budget = mean(budget, na.rm = T),
+            median_budget = median(budget, na.rm = T))
+
+# replace NA budget by median_budget value
+df <- df %>% left_join(budget_by_year, by = "release_year") %>%
+  mutate(budget = ifelse(is.na(budget), median_budget,
+                         budget))
+
+# re-check NA value in budget
+mean(is.na(df$budget))
+```
+
+### **Runtime**
+
+We replace the NA values in `runtime` by median value.
 
 ```{r}
 df$runtime[is.na(df$runtime)] <- median(df$runtime, na.rm = T)
 ```
 
-**What's movies have greatest ROI?**
+### **Popularity**
+
+Popularity should represent for the number of audience respond to a movie. Now take an overview on the popularity:
 
 ```{r}
-df %>% filter(budget > 50000) %>%
-    mutate(ROI = (revenue - budget)/budget) %>%
-  select(title, budget, revenue, ROI) %>%
+summary(df$popularity)
+```
+
+```{r}
+df %>% group_by(release_year) %>%
+  summarize(total_popularity = sum(popularity)) %>%
+  ggplot(aes(release_year, total_popularity)) +
+  geom_point(color = "steel blue")
+```
+
+The total popularity increased by release year and its trend look like the trend of budget vs release year and/or the trend of revenue vs release year. To normallize the change of popularity by time, I divide popularity by the average popularity per release year. The calculation is as following:
+
+```{r}
+# create the summarized table for popularity
+popularity_sum <- df %>%
+  group_by(release_year) %>%
+  summarize(avg_popularity = mean(popularity, na.rm = T))
+
+# create new normallized popularity
+df <- df %>%
+  left_join(popularity_sum, by = "release_year") %>%
+  mutate(normallized_popularity = popularity/avg_popularity)
+```
+
+```{r}
+# create 2nd summarize table for normallized_popularity
+norm_popularity_sum <- df %>%
+  group_by(release_year) %>%
+  summarize(max_norm_pop = max(normallized_popularity, na.rm = T))
+
+# add 2nd normallized popularity
+df <- df %>%
+  left_join(norm_popularity_sum, by = "release_year") %>%
+  mutate(secon_norm_popularity = normallized_popularity/max_norm_pop)
+```
+
+
+Now we can evaluate the correlation between `revenue` and `budget`, `popularity`, `runtime`. We also add the `vote_count` and `vote_average` into our data.
+
+### **ROI**
+
+```{r}
+df %>% mutate(ROI = (revenue - budget)/budget) %>%
+  select(title, budget, normallized_popularity, revenue, ROI, vote_count, vote_average, popularity) %>%
   arrange(desc(ROI)) %>% head(10) %>%
   kable(caption = "Top movies with greatest ROI") %>%
   kable_styling(latex_options = c("HOLD_position"), position = "center")
 ```
 
-Let's take a look on the correlation between `revenue` and `budget`, `popularity`, `runtime`.
+The greatest ROI movie is "The Blair Witch Project". Reference from wikipedia, The Blair Witch Project grossed nearly $250 million worldwide on a modest budget of $60,000, making it one of the most successful independent films of all time (reference: https://en.wikipedia.org/wiki/The_Blair_Witch_Project).
 
-```{r, warning=FALSE, fig.width=7, fig.height=4}
+### **Vote average and vote count**
+
+The vote average and vote count are added from the additional data. `vote_average` represent for the average rating from audiences and `vote_count` represent for the accumulated number of vote given by audiences.
+
+```{r}
+summary(df[,c("vote_count","vote_average")])
+```
+
+Replace NA values by median.
+
+```{r}
+df$vote_count[is.na(df$vote_count)] <- median(df$vote_count, na.rm = T)
+df$vote_average[is.na(df$vote_average)] <- median(df$vote_average, na.rm = T)
+```
+
+
+```{r, fig.width=7}
 grid.arrange(
-  train_set %>% ggplot(aes(budget, revenue)) +
-    geom_point(color = "steel blue", alpha = 0.5) +
-    geom_smooth() +
-    labs(title = "revenue vs budget",
-         caption = "Figure - scatter plot using ggplot2 on train_set"),
+  df %>% ggplot(aes(vote_count)) +
+    geom_histogram(fill = "steel blue",color = "white") +
+    labs(title = "vote_count"),
   
-  train_set %>% ggplot(aes(popularity, revenue)) +
-    geom_point(color = "steel blue", alpha = 0.5) +
-    geom_smooth() +
-    labs(title = "revenue vs popularity",
-         caption = "Figure - scatter plot using ggplot2 on train_set"),
+  df %>% ggplot(aes(vote_average)) +
+    geom_histogram(fill = "steel blue",color = "white") +
+    labs(title = "vote_count"),
   
-  train_set %>% ggplot(aes(runtime, revenue)) +
-    geom_point(color = "steel blue", alpha = 0.5) +
-    geom_smooth() +
-    labs(title = "revenue vs runtime",
-         caption = "Figure - scatter plot using ggplot2 on train_set"),
   ncol = 2
 )
 ```
 
-```{r, warning=FALSE}
-ggpairs(data = train_set, columns = c(3,10,15,23))
+The distribution sharp of `vote_count` look like `budget` and `revenue`, while the vote_average look like the distribution sharp of `popularity`.
+
+### **Correlation between variables**
+
+Let's take a look on the correlation between `revenue` and `budget`, `popularity`, `runtime`.
+
+```{r, warning=FALSE, fig.width=7, fig.height=7}
+corrplot(cor(df[1:3000,c("revenue","budget","popularity","runtime",
+                         "vote_count","vote_average",
+                         "normallized_popularity", 
+                         "secon_norm_popularity")]), type = "upper",
+         method = "number")
 ```
-
-Now we analyze the correlation between revenue and budget, popularity, runtime using the lm function.
-
-```{r}
-fit_lm <- lm(revenue ~ budget + popularity + runtime, 
-                data = train_set)
-
-results <- data.frame(method = "only continuous variables",
-                      rsquared = round(summary(fit_lm)$r.squared,4))
-results
-```
-
-As we see the R-squared is 
-`r results$rsquared`
-. Now we analyze remain discrete variables to find insights to improve our model.
-
-```{r}
-budget_validation <- df %>% filter(is.na(budget) | budget < 500) %>%
-  select(imdb_id, title, budget, revenue) %>%
-  mutate(benefit = revenue/budget,
-         title_2 = str_replace_all(title," ","_")) %>%
-  mutate(wiki = str_c("https://en.wikipedia.org/wiki/",title_2, sep = ""))
-
-budget_validation <- budget_validation[-10,]
-
-head(budget_validation,50)
-```
-
-```{r}
-nrow(budget_validation)
-```
-
-Write a function to extract budget from wikipedia.
-
-```{r}
-wiki_extract <- function(link){
-  h <- read_html(link)
-
-  a <- h %>%
-    html_node("table") %>%
-    html_table(fill = TRUE)
-  
-   names(a) <- c("c1","c2")
-   a$c2[which(a$c1 == "Budget")]
-}
-```
-
-```{r}
-links <- budget_validation$wiki
-
-budget_wiki <- sapply(links[1:20], function(link){
-  
-  print(which(links == link)/2070)
-  
-  return(tryCatch(wiki_extract(link), error=function(e) NULL))
-})
-```
-
-
-```{r}
-links <- budget_validation$wiki
-
-budget_wiki <- sapply(links[1:50], function(link){
-  print(which(links == link)/2070)
-  
-  h <- read_html(link)
-
-  a <- tryCatch(h %>%
-    html_node("table") %>%
-    html_table(fill = TRUE))
-  
-   names(a) <- c("c1","c2")
-  return(tryCatch(a$c2[which(a$c1 == "Budget")], error=function(e) NULL))
-
-})
-
-names(budget_wiki) <- budget_validation$imdb_id
-```
-
-```{r}
-budget_validation$wiki[12]
-```
-
-
-
-**Wiki**
-
-```{r}
-h <- read_html(budget_validation$wiki[1])
-
-a <- h %>%
-  html_node("table") %>%
-  html_table()
-
-a
-a[c("Budget"),]
-
-names(a) <- c("c1","c2")
-a$c2[which(a$c1 == "Budget")]
-```
-
-
-**IMDB**
-
-```{r}
-library(rvest)
-h <- html("https://www.imdb.com/title/tt0371746/")
-
-h %>%
-  html_node("span.small") %>%
-  html_text()
-```
-
-**Rotten tomatoes**
-
-```{r}
-
-```
-
 
 ## **Revenue vs discrete variables**
 
@@ -592,7 +657,7 @@ This variable have greatest number of NA values. There are `r 100*round(mean(is.
 % not-NA values. Let's take a look on the original values. 
 
 ```{r}
-head(df$belongs_to_collection,10)
+head(df$belongs_to_collection,5)
 ```
 
 Not all strings are necessary, only the name of the collection is probably informative. We will remove all unnecessary strings by following code.
@@ -612,7 +677,7 @@ We have total
 collection from both train_set and test_set.
 To visualize the difference between movies belong to a collection and movies not belong to any collection, I add one new feature `collection_status` to classify a movie belong to a collection or not. The following code and figure represent for this difference.
 
-```{r, fig.width=9, fig.height=4}
+```{r, fig.width=7, fig.height=3.5}
 df <- df %>% mutate(collection_status = ifelse(collection == "no collection", 0, 1))
 
 grid.arrange(
@@ -640,54 +705,6 @@ ncol = 2)
 ```
 
 **Insight** almost movie didn't belong to any collection, but in average, a movie belongs to a collection has higher revenue than others. 
-
-**What's top collection with greatest number of movies?**
-
-* Top 3 collection with greatest number of movies are James Bond Collection, Friday the 13th Collection, Pokemon Collection.
-
-```{r}
-# create a data table summarized budget, revenue, ROI by collection
-collection_sum <- df %>% filter(collection != "no collection") %>%
-  group_by(collection) %>%
-  summarize(movies_per_collection = n(), 
-            avg_budget_per_collection = mean(budget, na.rm = TRUE), 
-            avg_revenue_per_collection = mean(revenue, na.rm = TRUE),
-            avg_ROI_per_collection = mean(revenue, na.rm = TRUE)/mean(budget, na.rm = TRUE))
-
-collection_sum %>%
-  arrange(desc(movies_per_collection)) %>% head(10) %>%
-  kable(caption = "Top collection with greatest number of movies") %>%
-  kable_styling(latex_options = c("HOLD_position"), position = "center")
-```
-
-**What's collection with less number of movies?**
-
-```{r}
-collection_sum %>%
-  arrange(desc(movies_per_collection)) %>% tail(10) %>%
-  kable(caption = "Top collection with less number of movies", digits = 0) %>%
-  kable_styling(latex_options = c("HOLD_position"), position = "center")
-```
-
-**What's collection with greatest revenue?**
-
-```{r}
-collection_sum %>%
-  arrange(desc(avg_revenue_per_collection)) %>% head(10) %>%
-  kable(caption = "Top collection with greatest revenue", digits = 0) %>%
-  kable_styling(latex_options = c("HOLD_position"), position = "center")
-```
-
-**What's collection with greatest ROI?**
-
-To explore which movies have greatest ROI, we filter out the movies which budget is less than 50000.
-
-```{r}
-collection_sum %>%
-  arrange(desc(avg_ROI_per_collection)) %>% head(20) %>%
-  kable(caption = "Top collection with greatest revenue", digits = 0) %>%
-  kable_styling(latex_options = c("HOLD_position"), position = "center")
-```
 
 ###  **genres**
 
@@ -719,7 +736,7 @@ df$main_genre[is.na(df$main_genre)] <- "no genre"
 
 Now figure out the counting number and average revenue of each genre.
 
-```{r, fig.width=9}
+```{r, fig.width=7, fig.height=3.5}
 grid.arrange(
 df %>% 
   group_by(main_genre) %>%
@@ -768,7 +785,7 @@ df$number_genres[is.na(df$number_genres)] <- 0
 
 Now we evaluate the correlation between budget, revenue on the number of genres.
 
-```{r, fig.width=5, fig.height=7}
+```{r, fig.width=8, fig.height=3}
 grid.arrange(
   df %>% 
     ggplot(aes(number_genres)) +
@@ -784,28 +801,11 @@ grid.arrange(
     ggplot(aes(number_genres, avg_revenue)) +
     geom_col(fill = "steel blue"),
   
-  ncol = 1
+  ncol = 3
 )
 ```
 
 **Insight** In average, movie's revenue and budget inreases proportionally with the number of genres. 
-
-Now we add the feature `number_genres` to our model and see how much improvement on results.
-
-```{r}
-fit_lm <- lm(revenue ~ budget + popularity + runtime + number_genres + main_genre, data = df[0:3000,])
-```
-
-```{r}
-results <- bind_rows(results,
-                     data.frame(method = "add genres",
-                                rsquared = round(summary(fit_lm)$r.squared,4)))
-results
-```
-
-The rsquared is
-`r results[2,2]`
-which is not a big improvement.
 
 ### **homepage**
 
@@ -831,25 +831,7 @@ df[1:3000,] %>% ggplot(aes(homepage_status, revenue, fill = homepage_status)) +
   theme(legend.position = "none")
 ```
 
-Has-homepage movies have higher revenue than no-homepage movies. Now adding the `homepage_status` to our model and see how much improvement.
-
-```{r}
-# model fitting with adding feature homepage_status
-
-fit_lm <- lm(revenue ~ budget + popularity + runtime + 
-               homepage_status, data = df[0:3000,])
-
-# adding rsquared to summary tables
-
-results <- bind_rows(results,
-                     data.frame(method = "add homepage_status",
-                                rsquared = round(summary(fit_lm)$r.squared,4)))
-results
-```
-
-The rsquared is
-`r results[3,2]`
-which is not a significant improvement on our model. We can exclude this feature out.
+Has-homepage movies have higher revenue than no-homepage movies. 
 
 ### **original_language**
 
@@ -862,7 +844,8 @@ df %>% group_by(original_language) %>%
           avg_budget = mean(budget, na.rm = TRUE),
           avg_revenue = mean(revenue,na.rm = TRUE)) %>% 
   arrange(desc(count)) %>%
-  kable(caption = "summary of original language", digits = 0) %>%
+  head(10) %>%
+  kable(caption = "summary table of top 10 original languages", digits = 0) %>%
   kable_styling(position = "center",
                 latex_options = "HOLD_position")
 ```
@@ -881,26 +864,6 @@ df <- df %>%
          ifelse(original_language %in% c("es","ja","it","de","ko","zh","cn"),3,
             ifelse(original_language %in% c("af","ar","ca","is","ka","kn","mr","nb","vi"),1,2)))))
 ```
-
-Now adding this feature to our model and see how much improvement.
-
-```{r}
-# model fitting by adding original_language
-
-fit_lm <- lm(revenue ~ budget + popularity + runtime + 
-               original_language_sum, 
-             data = df[0:3000,])
-
-# adding rsquared to summary tables
-results <- bind_rows(results,
-                     data.frame(method = "add original_language_sum",
-                                rsquared = round(summary(fit_lm)$r.squared,4)))
-results
-```
-
-The rsquared is
-`r results[4,2]` 
-which is not a significant improvement.
 
 ### **production_companies**
 
@@ -921,39 +884,7 @@ df$number_of_company <- str_count(df$production_companies, pattern = "\\'name\\'
 df$number_of_company[is.na(df$number_of_company)] <- median(df$number_of_company, na.rm = TRUE)
 ```
 
-```{r}
-df %>% group_by(number_of_company) %>%
-  summarize(movies_per_company = n(),
-            percent = 100*round(n()/nrow(df),3),
-            avg_budget_per_company = mean(budget, na.rm = TRUE),
-            avg_revenue_per_company = mean(revenue, na.rm = TRUE)) %>%
-  mutate(avg_ROI_per_company = (avg_revenue_per_company - avg_budget_per_company)/avg_budget_per_company)
-```
-
-Now adding this feature `number_of_company` to our model and see how much improvement.
-
-```{r}
-# model fitting by adding original_language
-
-fit_lm <- lm(revenue ~ budget + popularity + runtime + 
-               number_of_company, 
-             data = df[0:3000,])
-
-# adding rsquared to summary tables
-results <- bind_rows(results,
-                     data.frame(method = "add number of company",
-                                rsquared = round(summary(fit_lm)$r.squared,4)))
-results
-```
-
-The rsquared
-`r results[5,2]`
-which is not a significant improvement.
-
 The second feature `companies` is created by following code.
-
-"[{'name': 'Paramount Pictures', 'id': 4},
-
 
 ```{r}
 df$companies <- gsub("(\\[?\\{\\'name\\'\\:\\s\\')|(\\'\\,\\s{1}\\'id\\'\\:\\s{1}\\d+\\}\\]?)","",df$production_companies)
@@ -995,8 +926,7 @@ Let's look at top 10 companies with greatest number of movies. Movies with 'no p
 first_company_summary %>% arrange(desc(movies_per_company)) %>% head(10)
 ```
 
-Now look at the average budget by first company. Marvel Studios's movies have greatest average budget and ROI 1.639.
-Heyday films, Mid Atlantic Films, Todman are the next top 3 greatest average budget, but the average revenue is NaN. Suppose those movies come from the test_set data.
+Now look at the average budget by first company. Heyday films, Mid Atlantic Films, Todman are top 3 greatest average budget.
 
 ```{r}
 first_company_summary %>% arrange(desc(avg_budget_per_company)) %>% head(10)
@@ -1007,13 +937,6 @@ Now look at the top average revenue companies. WingNut Films, 1492 Pictures, Blu
 ```{r}
 first_company_summary %>% arrange(desc(avg_revenue_per_company)) %>% head(10)
 ```
-
-Some movies have unbelievable ROI. This is due to the non-conforming budget data, as we highlighted in previous section.
-
-```{r}
-first_company_summary %>% arrange(desc(ROI_per_company)) %>% head(10)
-```
-
 
 ### **production_countries**
 
@@ -1032,22 +955,6 @@ df$country[is.na(df$country)] <- "no country info"
 
 table(df$country)
 ```
-
-Adding `country` to the linear model and see
-
-```{r}
-fit_lm <- lm(revenue ~ budget + popularity + runtime + 
-               country, 
-             data = df[0:3000,])
-
-# adding rsquared to summary tables
-results <- bind_rows(results,
-                     data.frame(method = "add country",
-                                rsquared = round(summary(fit_lm)$r.squared,4)))
-results
-```
-
-The rsquared is 0.5991 which is not any improvement.
 
 ### **spoken_languages**
 
@@ -1073,7 +980,7 @@ df$n_spoken_languages[is.na(df$n_spoken_languages)] <- median(df$n_spoken_langua
 
 Translating to other languages cost money, and it's probably affect on movie's budget. But normally only famous movies were translated to other languages.
 
-```{r, fig.width=9, fig.height=4.5}
+```{r, fig.width=8}
 grid.arrange(
   df %>% mutate(n_spoken_languages = factor(n_spoken_languages)) %>%
   ggplot(aes(n_spoken_languages)) +
@@ -1093,22 +1000,6 @@ df %>% mutate(n_spoken_languages = factor(n_spoken_languages)) %>%
 ncol = 3)
 ```
 
-Now adding `n_spoken_languages` to our model and see if any improvement on results.
-
-```{r}
-fit_lm <- lm(revenue ~ budget + popularity + runtime + 
-               n_spoken_languages, 
-             data = df[0:3000,])
-
-# adding rsquared to summary tables
-results <- bind_rows(results,
-                     data.frame(method = "add n_spoken_languages",
-                                rsquared = round(summary(fit_lm)$r.squared,4)))
-results
-```
-
-The rsquared is 0.5993 which is not a significant improvement.
-
 ### **cast**
 
 Let's take a look on `cast`. Each `cast` represent by following text "{'cast_id': 4, 'character': 'Lou', 'credit_id': '52fe4ee7c3a36847f82afae7', 'gender': 2, 'id': 52997, 'name': 'Rob Corddry', 'order': 0, 'profile_path': '/k2zJL0V1nEZuFT08xUdOd3ucfXz.jpg'}".
@@ -1125,7 +1016,7 @@ Replace NA by median value.
 df$n_cast[is.na(df$n_cast)] <- median(df$n_cast, na.rm = T)
 ```
 
-```{r, fig.width=9, fig.height=4}
+```{r, fig.width=7}
 grid.arrange(
 df %>% ggplot(aes(n_cast, budget)) +
   geom_point(color = "steel blue", alpha = 0.5)+
@@ -1138,21 +1029,7 @@ df %>% ggplot(aes(n_cast, revenue)) +
 ncol = 2)
 ```
 
-Now adding number of cast `n_cast` to our model and see how much improvement.
-
-```{r}
-fit_lm <- lm(revenue ~ budget + popularity + runtime + 
-               n_cast, 
-             data = df[0:3000,])
-
-# adding rsquared to summary tables
-results <- bind_rows(results,
-                     data.frame(method = "add n_cast",
-                                rsquared = round(summary(fit_lm)$r.squared,4)))
-results
-```
-
-The rsquared is 0.6039 which is not a significant improvement. But we know in practice, people watch movies just because the movie have their idols or favor actors. I will extract the name of the first and second casts into two feature `first_cast` and `second_cast`.
+We know in practice, people watch movies just because the movie have their idols or favor actors. I will extract the name of the first and second casts into two feature `first_cast` and `second_cast`.
 
 ```{r}
 # extract the first cast
@@ -1233,22 +1110,6 @@ df %>% ggplot(aes(n_crew)) +
   theme_classic()
 ```
 
-Now adding number of cast `n_crew` to our model and see its impact on the results.
-
-```{r}
-fit_lm <- lm(revenue ~ budget + popularity + runtime + 
-               n_crew, 
-             data = df[0:3000,])
-
-# adding rsquared to summary tables
-results <- bind_rows(results,
-                     data.frame(method = "add n_crew",
-                                rsquared = round(summary(fit_lm)$r.squared,4)))
-results
-```
-
-The rsquared is 0.5992 which is not any improvement.
-
 **Effect by director**
 
 A film director controls a film's artistic and dramatic aspects and visualizes the screenplay (or script) while guiding the technical crew and actors in the fulfilment of that vision. The director has a key role in choosing the cast members, production design, and the creative aspects of filmmaking.(*Reference: https://en.wikipedia.org/wiki/Film_director*)
@@ -1287,120 +1148,6 @@ director_summary %>% arrange(desc(avg_revenue_per_director)) %>%
   head(10)
 ```
 
-### **release_date**
-
-Take a look on the `release_date` feature.
-
-```{r}
-head(df$release_date)
-```
-
-```{r}
-class(df$release_date)
-```
-
-Now convert release_date from current type "character" to "date-time".
-
-```{r}
-df$release_date <- mdy(df$release_date)
-class(df$release_date)
-```
-
-```{r}
-df$release_year <- year(df$release_date)
-
-df$release_month <- month(df$release_date)
-
-df$release_quarter <- quarter(df$release_date)
-```
-
-```{r, fig.width=9}
-grid.arrange(
-  df %>% 
-    ggplot(aes(release_year)) +
-    geom_bar(fill = "steel blue", color = "white"),
-  
-  df %>% ggplot(aes(release_month)) +
-    geom_bar(fill = "steel blue", color = "white"),
-  
-    df %>% ggplot(aes(release_quarter)) +
-    geom_bar(fill = "steel blue", color = "white"),
-  
-  ncol = 2
-)
-```
-
-Adding release year and release month to our model to evaluate its impact on results.
-
-```{r}
-fit_lm <- lm(revenue ~ budget + popularity + runtime + 
-               release_year + release_month, 
-             data = df[0:3000,])
-
-# adding rsquared to summary tables
-results <- bind_rows(results,
-                     data.frame(method = "add time effect",
-                                rsquared = round(summary(fit_lm)$r.squared,4)))
-results
-```
-
-The rsquared is 0.6149 which is not a significant improvement.
-
-There are some movies which release year later than 2019 which is not applicable.
-
-```{r}
-df %>% filter(release_year > 2019) %>% nrow
-```
-
-We will replace the movies's release_year greater than 2019 by the median.
-
-```{r}
-df$release_year <- as.character(df$release_year)
-
-df$release_year[df$release_year > 2019] <- "wrong release year"
-
-df$release_year[is.na(df$release_year)] <- "missing release year"
-
-df$release_month[is.na(df$release_month)] <- median(df$release_month, na.rm = T)
-
-df$release_quarter[is.na(df$release_quarter)] <- median(df$release_quarter, na.rm = T)
-```
-
-However, we can see the number of movies increases by time. Suppose this increment is equivalent to the movies industry growth, in other words the total revenue suppose to be increased proportional with the number of movies per year.
-
-```{r,fig.width=8}
-df <- df %>% mutate(revenue_status = ifelse(is.na(revenue),"unknown revenue","known revenue")) %>%
-  mutate(revenue_status = factor(revenue_status))
-
-grid.arrange(
-  df %>% 
-    ggplot(aes(release_year, fill = revenue_status)) +
-    geom_bar(color = "white") +
-    scale_fill_manual(values = c("grey","steel blue")) +
-    theme_classic()+
-    theme(legend.position = "none"),
-  
-  df %>% 
-    group_by(release_year, revenue_status) %>%
-    summarize(total_budget = sum(budget, na.rm = T)) %>%
-    ggplot(aes(release_year, total_budget, fill = revenue_status)) +
-    geom_col(color = "white") +
-    scale_fill_manual(values = c("grey","steel blue")) +
-    theme_classic()+
-    theme(legend.position = "none") + ylim(0,1.5e10),
-  
-  df %>% group_by(release_year) %>%
-    summarize(total_known_revenue = sum(revenue, na.rm = T)) %>%
-    ggplot(aes(release_year, total_known_revenue)) +
-    geom_col(color = "white", fill = "steel blue") +
-    theme_classic()+
-    theme(legend.position = "none")+ ylim(0,1.5e10),
-  
-  ncol = 3)
-```
-
-Based on the ratio of unknown revenue by release year and current revenue, we can estimate the total unknown revenue.
-
 ## **Features engineering**
 
 ### **collection revenue**
@@ -1428,22 +1175,6 @@ Adding this to our data and see how much improvement on the results.
 ```{r}
 df <- df %>% left_join(collection_revenue, by = "collection")
 ```
-
-```{r}
-fit_lm <- lm(revenue ~ budget + popularity + runtime + 
-               avg_revenue_per_collection, 
-             data = df[0:3000,])
-
-# adding rsquared to summary tables
-results <- bind_rows(results,
-                     data.frame(method = "add collection revenue",
-                                rsquared = round(summary(fit_lm)$r.squared,4)))
-results
-```
-
-The rsquared is 0.7719 which is a significant improvement on results. The `avg_revenue_per_collection` can explain approximate
-`r 100*round(results$rsquared[results$method == "add collection revenue"] - results$rsquared[results$method == "only continuous variables"],4)`
-% of predicted revenue.
 
 ### **Production companies, cast, director**
 
@@ -1479,18 +1210,45 @@ df <- df %>% left_join(cast_summary[,c(1,3)], by = "second_cast")
 df <- df %>% left_join(director_summary, by = "director")
 ```
 
+**Genres**
+
+```{r}
+genres <- levels(factor(df$main_genre))
+```
+
+```{r}
+for (i in 1:19){
+  df[,genres[i]] <- ifelse(str_detect(df$genres,genres[i]),
+                           1,0)
+}
+```
+
+
+
 Selecting the features.
 
 ```{r}
 dat <- df %>% 
-  select(budget, popularity, runtime,
-         avg_revenue_per_collection, 
-         movies_per_company, avg_revenue_per_company, ROI_per_company,
-         avg_revenue_per_cast.x, avg_revenue_per_cast.y, 
-         movies_per_director, avg_revenue_per_director,
-         n_cast, n_crew,
-         revenue)
+    mutate(x2 = budget*normallized_popularity,
+         x3 = budget*vote_average,
+         x4 = budget*secon_norm_popularity) %>%
+  select(revenue,
+         collection_status,
+         #vote_count, vote_average,
+         release_year, release_month, number_of_company,
+         n_spoken_languages, n_cast, original_language_sum,
+         n_crew, avg_revenue_per_director,
+         x2,x4,68:79,81:83,85:86)
+
 ```
+
+
+
+
+```{r}
+head(dat)
+```
+
 
 Review the NA values.
 
@@ -1501,70 +1259,32 @@ plot_missing(dat)
 Replace NA values by median.
 
 ```{r}
-dat[,1:11][is.na(dat[,1:11])] <- 0
-```
-
-```{r}
-for (i in 1:11){
+for (i in 2:(ncol(dat))){
   dat[is.na(dat[,i]),i] <- median(dat[,i], na.rm = T)
 }
 ```
 
+**Correlation plot**
 
-Correlation plot
-
-```{r}
-corrplot.mixed(cor(na.omit(dat)), upper = "ellipse", lower = "number")
-```
-
-### **Budget**
-
-```{r}
-length(filter(dat, budget < 20000))
-```
-
-Convert wrong budget number to NA.
-
-```{r}
-dat$budget[dat$budget < 20000] <- NA
-```
-
-Separate budget to train and test dataset. I apply random forest to predict the missing budget.
-
-```{r}
-train_budget <- dat[!is.na(dat$budget),-12] 
-
-budget_NA <- dat[is.na(dat$budget),-12]
-```
-
-```{r}
-control <- trainControl(method = "cv",
-                        number = 3,
-                        p = 0.8)
-
-fit_budget <- train(budget ~ .,
-                    data = train_budget,
-                    method = "rf",
-                    trControl = control)
-
-fit_budget$results$RMSE
-```
-
-```{r}
-dat$new_budget <- predict(fit_budget, dat)
-
-dat <- dat %>% mutate(new_budget = ifelse(is.na(budget), new_budget, budget))
-```
-
-```{r}
-summary(dat$new_budget)
-```
-
-```{r}
-corrplot.mixed(cor(na.omit(dat)), upper = "ellipse", lower = "number")
+```{r, fig.width=7, fig.height=7}
+corrplot(cor(dat[1:3000,]), type = "upper", method = "ellipse")
 ```
 
 # **Modeling**
+
+Before process modeling, we transform the revenue, budget, av_revenue_per_director, x2, x4 by logarit 10.
+
+```{r}
+dat$revenue <- log10(dat$revenue + 1)
+dat$avg_revenue_per_director <- log10(dat$avg_revenue_per_director + 1)
+dat$x2 <- log10(dat$x2 + 1)
+# dat$x3 <- log10(dat$x3 + 1)
+dat$x4 <- log10(dat$x4 + 1)
+
+head(dat)
+```
+
+We use randorm forest (rf), support vector machine (svmLinear), gradient linear model boosting (glmboost) and linear model (lm) for modeling.
 
 ```{r}
 fit_rf <- train(revenue ~ ., 
@@ -1588,133 +1308,182 @@ fit_glmboost <- train(revenue~.,
                  trControl = trainControl(method = "cv",
                                       number = 5,
                                       p = 0.8))
+
+fit_lm <- train(revenue~.,
+                 data = dat[1:3000,],
+                 method = "lm",
+                 trControl = trainControl(method = "cv",
+                                      number = 5,
+                                      p = 0.8))
 ```
+
+
 
 ```{r}
-data.frame(method = c("rf","svm","glmboost"),
-           RMSLE =c(min(log10(fit_rf$results$RMSE)),
-                    min(log10(fit_svm$results$RMSE)),
-                    min(log10(fit_glmboost$results$RMSE))))
+data.frame(method = c("rf","svm","glmboost","lm"),
+           RMSLE =c(min(fit_rf$results$RMSE),
+                    min(fit_svm$results$RMSE),
+                    min(fit_glmboost$results$RMSE),
+                    min(fit_lm$results$RMSE)),
+           Rsquared = c(max(fit_rf$results$Rsquared),
+                        max(fit_svm$results$Rsquared),
+                        max(fit_svm$results$Rsquared),
+                        max(fit_lm$results$Rsquared)))
 ```
-
 
 ```{r}
 # calculate predicted revenue
 
-yhat_rf <- predict(fit_rf, newdata = dat[3001:7398,])
+yhat_rf <- predict(fit_rf, newdata = dat[3001:7398-l,])
 
-yhat_svm <- predict(fit_svm, newdata = dat[3001:7398,])
+yhat_svm <- predict(fit_svm, newdata = dat[3001:7398-l,])
 
-yhat_glmboost <- predict(fit_glmboost, newdata = dat[3001:7398,])
+yhat_glmboost <- predict(fit_glmboost, newdata = dat[3001:7398-l,])
+
+yhat_lm <- predict(fit_lm, newdata = dat[3001:7398-l,])
 ```
 
 ```{r}
 # ensembles
 ensembles <- data.frame(rf = yhat_rf,
                         svm = yhat_svm,
-                        glmboost = yhat_glmboost)
+                        glmboost = yhat_glmboost,
+                        lm = yhat_lm)
 ```
 
 ```{r}
-corrplot(cor(ensembles), method = "number")
+corrplot(cor(ensembles), method = "number", type = "upper",na.label.col = TRUE)
 ```
 
 ```{r}
-ensembles <- ensembles %>% mutate(combine = (svm + glmboost)/2) %>%
-  mutate(combine = ifelse(combine <= 0, rf, combine))
+ensembles <- ensembles %>% mutate(combine = (rf + glmboost)/2) %>%
+  mutate(combine = ifelse(combine <= 0|combine == Inf, 7, combine))
 ```
 
 
 ```{r}
-mean(ensembles$combine <= 0)
+hist(yhat_lm, binwidth = 20)
+```
+
+```{r}
+RMSE <- function(predicted_revenue, true_revenue){
+  sqrt(mean((true_revenue- predicted_revenue)^2))
+}
+```
+
+
+```{r}
+RMSE(ensembles$combine, log10(test_y))
+```
+
+```{r}
+rsquared <- function (x, y) cor(x, y) ^ 2
+
+rsquared(ensembles$combine, log10(test_y))
+```
+
+```{r}
+data.frame(predict = ensembles$combine, true_revenue = log10(test_y)) %>%
+  ggplot(aes(true_revenue, predict)) +
+  geom_point(color = "steel blue", alpha = 0.5) +
+  geom_smooth()
 ```
 
 
 ```{r}
 # write csv file for submission
 
-sample_submission$revenue <- ensembles$combine
+sample_submission$revenue <- 10^ensembles$combine
 names(sample_submission) <- c("id","revenue")
 write.csv(sample_submission, file = "submission_combine.csv", row.names = F)
 ```
 
 
-### **Budget**
-
-
-
-number_genres + 
-               homepage_status +
-               original_language +
-               number_of_company + 
-               country +
-               n_spoken_languages +
-               n_cast +
-               n_crew +
-               release_year + release_month +
+# **Modeling subset by year**
 
 ```{r}
-fit_lm <- lm(revenue ~ budget + popularity + runtime + 
-               collection_status + 
-               avg_revenue_per_collection, 
-             data = df[0:3000,])
-
-# adding rsquared to summary tables
-results <- bind_rows(results,
-                     data.frame(method = "correct budget + add revenue per collection",
-                                rsquared = round(summary(fit_lm)$r.squared,4)))
-results
-```
- 
-
-
-# **Modeling**
-
-
-```{r}
-models <- c("xgbLinear", "svmLinear","lm")
+release_years <- levels(factor(df$release_year))
+table(df$release_year)
 ```
 
 ```{r}
-dat <- df %>% select(new_budget, popularity, runtime, revenue, number_genres,
-                     number_of_company, n_spoken_languages, n_cast, n_crew, release_year, release_month,
-                     avg_revenue_per_collection)
-
-revenue <- df[1:3000,c("revenue")]
-
-dat_preprocess <- dummyVars(~., data = dat[,-4])
-
-dat <- predict(dat_preprocess, dat[,-4])
+names(dat)
 ```
 
 ```{r}
-corrplot(cor(dat[1:3000,]), method = "number")
+summary(
+  lm(revenue~.,
+     data = filter(dat[1:3000,], release_year < 1960 & release_year >= 1900 ))
+)
 ```
 
+```{r}
+dat_test <- dat[3001:7398,] %>%
+  mutate(predicted_revenue = ensembles$combine,
+         true_revenue = test_y) %>%
+  mutate(error = test_y - predicted_revenue)
 
-# **Results**
+dat_test %>% ggplot(aes(release_year, error)) +
+  geom_point(color = "steel blue")
+```
 
 ```{r}
-fit_one <- train(dat[1:3000,],
-                   revenue,
-                   method = "rfC",
-                   trControl = trainControl(method = "cv",
-                                            number = 3,
-                                            p = 0.8))
+years_group <- c(1,2,3)
 
-yhat_xgbLinear <- predict(fit_one, newdata = dat[3001:7398,])
+control <- trainControl(method = "cv",
+                        number = 5,
+                        p = 0.75)
 
-sample_submission$revenue <- yhat_xgbLinear
+dat <- dat %>% 
+  mutate(yr_group = ifelse(release_year <= 1990,1,
+                           #ifelse(release_year > 1960 & release_year <= 1990,2,
+                                  ifelse(release_year > 1990 & release_year <= 2010, 2,3)))
+
+#fit_before_1960 <- train(revenue~.,
+#                         data = filter(dat[,-c(20,23)],yr_group == 1),
+#                         method = "rf",
+#                         trControl = control)
+
+fit_60s_90s <- train(revenue~.,
+                     data = filter(dat[1:3000,], yr_group == 1),
+                     method = "rf",
+                     trControl = control)
+
+fit_90s_2k10 <- train(revenue~.,
+                     data = filter(dat[1:3000,], yr_group == 2),
+                     method = "rf",
+                     trControl = control)
+
+fit_after_2k10 <- train(revenue~.,
+                     data = filter(dat[1:3000,], yr_group == 3),
+                     method = "rf",
+                     trControl = control)
+
+yhat <- dat[3001:7398,] %>% 
+  mutate(yhat_2 = predict(fit_60s_90s, dat[3001:7398,]),
+         yhat_3 = predict(fit_90s_2k10, dat[3001:7398,]),
+         yhat_4 = predict(fit_after_2k10,dat[3001:7398,])) %>%
+  mutate(final_revenue = ifelse(yr_group == 1, yhat_2,
+                                ifelse(yr_group == 2, yhat_3, yhat_4))) %>%
+  pull(final_revenue)
+
+RMSE(yhat, log10(test_y))
+
+```
+
+```{r}
+data.frame(predict = yhat, true_revenue = log10(test_y)) %>%
+  ggplot(aes(true_revenue, predict)) +
+  geom_point(color = "steel blue", alpha = 0.5) +
+  geom_smooth()
+```
+
+```{r}
+# write csv file for submission
+
+sample_submission$revenue <- 10^yhat
 names(sample_submission) <- c("id","revenue")
-write.csv(sample_submission, file = "submission_xgbLinear.csv", row.names = F)
-```
-
-```{r}
-fit_one$results$Rsquared
-```
-
-```{r}
-summary(sample_submission)
+write.csv(sample_submission, file = "submission_combine.csv", row.names = F)
 ```
 
 
@@ -1727,120 +1496,4 @@ summary(sample_submission)
 
 
 # **Reference**
-
-```{r}
-df <- df %>% left_join(addition_data, by = "imdb_id")
-names(df)
-```
-
-
-```{r}
-df2 <- df
-
-dat <- df %>% 
-  select(budget, popularity.y, runtime.x,
-         avg_revenue_per_collection,
-         movies_per_company, ROI_per_company,
-         movies_per_director, avg_revenue_per_director,
-         n_cast, n_crew, n_spoken_languages,
-         revenue.x, vote_average, vote_count)
-
-dat <- df %>% select(imdb_id, budget, popularity.x, runtime.x, number_genres,
-                     number_of_company, n_spoken_languages, 
-                     n_cast, n_crew, 
-                     avg_revenue_per_collection, 
-                     movies_per_director, avg_revenue_per_director,
-                     avg_revenue_per_cast.x, avg_revenue_per_cast.y,
-                     ROI_per_company, movies_per_company,
-                     vote_average, vote_count)
-
-df$budget[df$imdb_id == "tt0475783"] <- 8000000
-df$budget[df$imdb_id == "tt1408101"] <- 190000000
-df$revenue[df$imdb_id == "tt1408101"] <- 228778661
-df$budget[df$imdb_id == "tt1913166"] <- 10000000
-
-
-colSums(is.na(dat))
-
-for (i in 2:ncol(dat)){
-  dat[is.na(dat[,i]),i] <- median(dat[,i], na.rm = T)
-}
-dat$new_budget.x <- log10(dat$new_budget.x)
-dat$avg_revenue_per_collection <- log10(dat$avg_revenue_per_collection)
-dat$avg_revenue_per_director <- log10(dat$avg_revenue_per_director)
-```
-
-## correct budget
-
-```{r}
-length(filter(dat, budget < 20000))
-```
-
-Convert wrong budget number to NA.
-
-```{r}
-dat$budget[dat$budget < 20000] <- NA
-```
-
-Separate budget to train and test dataset. I apply random forest to predict the missing budget.
-
-```{r}
-train_budget <- dat[!is.na(dat$budget),-12] 
-
-budget_NA <- dat[is.na(dat$budget),-12]
-```
-
-```{r}
-control <- trainControl(method = "cv",
-                        number = 3,
-                        p = 0.8)
-
-fit_budget <- train(budget ~ .,
-                    data = train_budget,
-                    method = "rf",
-                    trControl = control)
-
-fit_budget$results$Rsquared
-```
-
-```{r}
-dat$new_budget <- predict(fit_budget, dat)
-
-dat <- dat %>% mutate(new_budget = ifelse(is.na(budget), new_budget, budget))
-```
-
-## modeling
-
-```{r}
-fit_one <- train(dat[1:3000,-12],
-                   log10(revenue),
-                   method = "rf",
-                   trControl = trainControl(method = "cv",
-                                            number = 5,
-                                            p = 0.8))
-
-fit_one$results$Rsquared
-
-```
-
-```{r}
-
-yhat_one <- predict(fit_one, newdata = dat[3001:7398,-12])
-mean(is.na(yhat_one))
-```
-
-```{r}
-RMLSE(10^yhat_one, test_y)
-```
-
-```{r}
-summary(10^yhat_one)
-test_y[is.na(test_y)] <- median(test_y, na.rm = T)
-```
-
-```{r}
-sample_submission$revenue <- test_y
-names(sample_submission) <- c("id","revenue")
-write.csv(sample_submission, file = "submission_one.csv", row.names = F)
-```
 
