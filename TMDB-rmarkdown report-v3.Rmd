@@ -188,7 +188,13 @@ With:
 ```{r}
 # write function RMLSe to evaluate modeling performance
 RMLSE <- function(predicted_revenue, true_revenue){
-  sqrt(mean((log(true_revenue)- log(predicted_revenue))^2))
+  sqrt(mean((logb(true_revenue)- logb(predicted_revenue))^2))
+}
+```
+
+```{r}
+RMSE <- function(predicted_revenue, true_revenue){
+  sqrt(mean((true_revenue- predicted_revenue)^2))
 }
 ```
 
@@ -233,14 +239,21 @@ Due to very long processing time to download data from TMDb website, I did not i
 ```{r}
 # download additional data from my github repo
 url_additional <- url("https://raw.githubusercontent.com/billynguyenlss/TMDB-Box/master/data/personal%20additional%20data/full_additional_features_2.csv")
-addition_data <- read.csv(url_additional, na.strings=c("", '#N/A', '[]', '0'))
+additional_data <- read.csv(url_additional, na.strings=c("", '#N/A', '[]', '0'))
 ```
 
 Because the true revenue was available on the TMDb dataset, I extract it to a vector named `test_y` for final modeling performance evaluation.
 
 ```{r, warning=FALSE}
 # extract the true_rating value from additional data
-test_y <- test_set %>% left_join(addition_data, by = "imdb_id") %>%
+test_y <- test_set %>% left_join(additional_data, by = "imdb_id") %>%
+  mutate(new_revenue = ifelse(is.na(new_revenue), median(new_revenue, na.rm = T), new_revenue)) %>%
+  pull(new_revenue)
+```
+
+```{r}
+# extract the true_rating value from additional data for training set
+train_y <- train_set %>% left_join(additional_data, by = "imdb_id") %>%
   mutate(new_revenue = ifelse(is.na(new_revenue), median(new_revenue, na.rm = T), new_revenue)) %>%
   pull(new_revenue)
 ```
@@ -372,8 +385,9 @@ To correct the `release_date` and replace NA value, I used the release date in T
 
 ```{r, warning=FALSE}
 # left joining the addition data into df
-df <- df %>% left_join(addition_data[,c(1,2,3,7:13)], by = "imdb_id")
+df <- df %>% left_join(addition_data, by = "imdb_id")
 df$new_release_date <- as.character(df$new_release_date)
+
 
 # replace wrong release data
 df <- df %>% 
@@ -382,7 +396,8 @@ df <- df %>%
                                new_release_date, release_date)) %>%
   mutate(release_date = ifelse(is.na(release_date),
                                new_release_date, release_date)) %>%
-  mutate(release_date = as_date(release_date))
+  mutate(release_date = as_date(release_date)) %>%
+  mutate(release_date = new_release_date)
 ```
 
 ```{r}
@@ -542,6 +557,11 @@ Now joining the wikipedia to our data.
 df <- df %>% mutate(imdb_id = as.factor(imdb_id)) %>%
   left_join(wikipedia_budget[,c(1,2,5)],by = "imdb_id")
 #replace low budget value
+df$budget <- df$new_budget
+df$new_revenue[is.na(df$new_revenue)] <- df$revenue
+df$revenue[1:3000] <- df$new_revenue[1:3000]
+df$popularity <- df$new_popularity
+
 df <- df %>% 
   mutate(budget = ifelse(budget <= 1000 & revenue > 10000, final_budget, budget))
 # replace NA budget value by wikipedia budget
@@ -565,6 +585,8 @@ budget_by_year <- df %>%
 df <- df %>% left_join(budget_by_year, by = "release_year") %>%
   mutate(budget = ifelse(is.na(budget), median_budget,
                          budget))
+
+df$budget[is.na(df$budget)] <- median(df$budget, na.rm = T)
 
 # re-check NA value in budget
 mean(is.na(df$budget))
@@ -657,6 +679,12 @@ df %>% mutate(ROI = (revenue - budget)/budget) %>%
 The most profitable movie is "Paranormal Activity" (ROI 12889), which is a 2007 American supernatural horror film co-produced, written, directed, photographed and edited by Oren Peli. It centers on a young couple (Katie Featherston and Micah Sloat) who are haunted by a supernatural presence in their home. The film earned nearly $108 million at the U.S. box office and a further $85 million internationally for a worldwide total of $193 million (reference: https://en.wikipedia.org/wiki/Paranormal_Activity).
 
 The second most profitable movie is "The Blair Witch Project". Reference from wikipedia, The Blair Witch Project grossed nearly $250 million worldwide on a modest budget of $60,000, making it one of the most successful independent films of all time (reference: https://en.wikipedia.org/wiki/The_Blair_Witch_Project).
+
+```{r}
+which(df$title == "Paranormal Activity")
+which(df$title == "The Blair Witch Project")
+```
+
 
 ### **Correlation between continuous variables**
 
@@ -1384,11 +1412,6 @@ for (i in 1:19){
 **Top production companies**
 
 ```{r}
-grep("no production companies info", colnames(df))
-```
-
-
-```{r}
 for (i in 1:10){
   df[,top_production_companies[i]] <- 
     ifelse(str_detect(df$production_companies,top_production_companies[i]),
@@ -1419,10 +1442,10 @@ dat <- df %>%
          x4 = budget*secon_norm_popularity) %>%
   select(revenue,
          x2,budget,
-         #avg_revenue_per_director,
-         #avg_revenue_per_collection,
-         #avg_revenue_per_cast.x,
-         #avg_revenue_per_cast.y,
+         avg_revenue_per_director,
+         avg_revenue_per_collection,
+         avg_revenue_per_cast.x,
+         avg_revenue_per_cast.y,
          normallized_popularity, 
          collection_status,
          release_year, release_month, 
@@ -1431,7 +1454,8 @@ dat <- df %>%
          n_spoken_languages, original_language_sum,
          #n_crew, n_cast,
          number_genres,
-         68:79,81:83,85:94,96:97)
+        72:83,85:87,89:98,100:101
+         )
 ```
 
 
@@ -1485,28 +1509,28 @@ We use randorm forest (rf), support vector machine (svmLinear), gradient linear 
 
 ```{r}
 fit_rf <- train(revenue ~ ., 
-             data = dat[1:3000,],
+             data = dat[c(1:3000,-1231,-1680),],
              method = "rf",
              metric = "RMSE",
              trControl = trainControl(method = "cv",
                                       number = 5,
                                       p = 0.8))
 fit_svm <- train(revenue~.,
-                 data = dat[1:3000,],
+                 data = dat[c(1:3000,-1231,-1680),],
                  method = "svmLinear",
                  metric = "RMSE",
                  trControl = trainControl(method = "cv",
                                       number = 5,
                                       p = 0.8))
 fit_glmboost <- train(revenue~.,
-                 data = dat[1:3000,],
+                 data = dat[c(1:3000,-1231,-1680),],
                  method = "brnn",
                  metric = "RMSE",
                  trControl = trainControl(method = "cv",
                                       number = 5,
                                       p = 0.8))
 fit_lm <- train(revenue~.,
-                 data = dat[1:3000,],
+                 data = dat[c(1:3000,-1231,-1680),],
                  method = "bayesglm",
                 metric = "RMSE",
                  trControl = trainControl(method = "cv",
@@ -1552,11 +1576,7 @@ ensembles <- ensembles %>% mutate(combine = rowMeans(ensembles)) %>%
   mutate(combine = ifelse(combine <= 0|combine == Inf, 7, combine))
 ```
 
-```{r}
-RMSE <- function(predicted_revenue, true_revenue){
-  sqrt(mean((true_revenue- predicted_revenue)^2))
-}
-```
+
 
 
 ```{r}
