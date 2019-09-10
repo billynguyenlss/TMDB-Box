@@ -664,7 +664,4 @@ validation_results <- data.frame(Univariate_Filters = final_model1_RMSLE,
                                  Revenue_group_Features = final_model2_RMSLE,
                                  Budget_group_Features = final_model3_RMSLE) 
 
-validation_results %>%  kable(digits = 3) %>%
-  kable_styling(latex_options = c("HOLD_position"),
-                bootstrap_options = c("striped", "hover"),
-                full_width = F, position = "center")
+validation_results 
